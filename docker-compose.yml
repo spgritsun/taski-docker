@@ -1,0 +1,45 @@
+# Файл docker-compose.yml
+volumes:
+  pg_data:
+# Новый volume — для статических файлов
+  static:
+
+services:
+  db:
+    image: postgres:13.10
+    env_file: .env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+  backend:
+    build: ./backend/
+    image: sgritsun/taski-docker-backend:latest
+    env_file: .env
+    depends_on:
+      - db
+# Тут подключаем volume к backend
+    volumes:
+      - static:/backend_static
+  frontend:
+    env_file: .env
+    build: ./frontend/
+    image: sgritsun/taski-docker-frontend:latest
+    volumes:
+      - static:/frontend_static
+    command: cp -r /app/build/. /frontend_static/
+
+# Добавляем новый контейнер: gateway
+  gateway:
+    # Сбилдить и запустить образ,
+    # описанный в Dockerfile в папке gateway
+    build: ./gateway/
+    image: sgritsun/taski-docker-gateway:latest
+    depends_on:
+      - backend
+# А тут подключаем volume со статикой к gateway
+    volumes:
+      - static:/staticfiles
+    # Ключ ports устанавливает
+    # перенаправление всех запросов с порта 8000 хоста
+    # на порт 80 контейнера
+    ports:
+      - 8000:80
